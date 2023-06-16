@@ -1,63 +1,43 @@
 import React, { useState, useEffect } from "react";
-import { useQuery, gql } from "@apollo/client";
-import Card from "./Card";
+import { useQuery } from "@apollo/client";
 import { InView } from "react-intersection-observer";
+import Card from "./Card";
+import { getChracters } from "../graphql/queries";
+import { updateQuery } from "../utils/helper";
 
 const Info = () => {
   const [page, setPage] = useState(1);
 
-  const QUERY = gql`
-    query Characters($page: Int) {
-      characters(page: $page) {
-        info {
-          count
-        }
-        results {
-          name
-        }
-      }
-    }
-  `;
-
-  const { loading, error, fetchMore, data } = useQuery(QUERY, {
+  const { loading, error, fetchMore, data } = useQuery(getChracters, {
     variables: { page: 1 },
+    notifyOnNetworkStatusChange: true,
   });
-
+  console.log(loading);
   useEffect(() => {
     setPage(page + 1);
   }, [data]);
 
   return (
-    <div>
-      {data && data.characters.results.map(() => <Card />)}
+    <>
+      {data && data.characters.results.map((item) => <Card data={item} />)}
       {data && (
         <InView
           onChange={async (inView) => {
             if (inView) {
+              console.log(`Fetching page: ${page}`);
               await fetchMore({
                 variables: {
-                  page: page,
+                  page,
                 },
-                updateQuery: (previousData, { fetchMoreResult }) => {
-                  let prevResult = previousData.characters.results;
-                  let nextResult = fetchMoreResult.characters.results;
-
-                  let temp = [...prevResult, ...nextResult];
-
-                  return {
-                    characters: {
-                      info: fetchMoreResult.characters.info,
-                      results: temp,
-                    },
-                  };
-                },
+                updateQuery,
               });
             }
           }}
         />
       )}
-      {loading && <h1>Loading</h1>}
-    </div>
+      {loading && <h1 className="absolute text-xl m-5">Loading</h1>}
+      {error && <h1>Error</h1>}
+    </>
   );
 };
 
